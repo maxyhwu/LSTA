@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boolean Function Evaluator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+    }
+
+    input,
+    button {
+      margin-top: 10px;
+      margin-bottom: 20px;
+    }
+
+    pre {
+      background-color: #f4f4f4;
+      padding: 15px;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>Boolean Function Evaluator</h1>
+  <label for="level">Enter the level of the boolean function (number of variables):</label><br>
+  <input type="number" id="level" min="1" max="10" /><br>
+
+  <label for="expression">Enter the boolean function with the target (e.g., f1 = x2 \/ x3):</label><br>
+  <input type="text" id="expression" size="50" /><br>
+
+  <button onclick="evaluateFunction()">Evaluate</button>
+
+  <pre id="output"></pre>
+
+  <script>
+    // Function to parse and evaluate the boolean expression
+    function parseBooleanFunction(level,target,booleanExpression,inputValues) {
+      // Create a dictionary of variables based on inputValues
+      let variables = {};
+      for(let i = 1; i <= level; i++) {
+        variables[`x${i}`] = Boolean(parseInt(inputValues[i - 1]));
+      }
+
+      // Replace variables in the expression with their values
+      for(let i = 1; i <= level; i++) {
+        let regex = new RegExp(`\\bx${i}\\b`,'g');
+        booleanExpression = booleanExpression.replace(regex,variables[`x${i}`]);
+      }
+
+      // Replace boolean operators with JavaScript equivalents
+      booleanExpression = booleanExpression
+        .replace(/\\\//g,' || ') // \/ -> OR
+        .replace(/\/\\/g,' && ') // /\ -> AND
+        .replace(/~/g,'!');      // ~ -> NOT
+
+      // Evaluate the expression
+      let booleanResult = eval(booleanExpression);
+
+      // XOR the result with the target bit value
+      let targetVar = `x${target.slice(1)}`;
+      let xorResult = booleanResult ^ variables[targetVar];
+
+      return {booleanResult,xorResult};
+    }
+
+    // Function to try all combinations and display the results
+    function tryAllCombinations(level,target,booleanExpression) {
+      const outputElement = document.getElementById('output');
+      outputElement.textContent = `Trying all ${2 ** level} possible combinations for ${level} variables...\n\n`;
+
+      let changedPairs = new Set();
+
+      // Generate all possible combinations
+      for(let i = 0; i < 2 ** level; i++) {
+        let inputValues = i.toString(2).padStart(level,'0'); // Binary string with padding
+
+        // Evaluate the boolean function for this combination
+        let {booleanResult,xorResult} = parseBooleanFunction(level,target,booleanExpression,inputValues);
+
+        // Create the output bit string by updating only the target bit
+        let outputValues = inputValues.split('');
+        let targetIndex = parseInt(target.slice(1)) - 1; // Target index (e.g., f1 -> x1)
+        outputValues[targetIndex] = xorResult.toString(); // Update the target bit
+        outputValues = outputValues.join('');
+
+        // Append the result to the output element
+        outputElement.textContent += `Input: ${inputValues} -> Boolean result: ${booleanResult}, XOR with ${target}: ${xorResult} -> Output: ${outputValues}\n`;
+
+        // If input and output differ, store the sorted pair
+        if(inputValues !== outputValues) {
+          let pair = [parseInt(inputValues,2) + 1,parseInt(outputValues,2) + 1].sort((a,b) => a - b);
+          changedPairs.add(JSON.stringify(pair)); // Use JSON to ensure uniqueness
+        }
+      }
+
+      // Append the changed pairs to the output element
+      if(changedPairs.size > 0) {
+        outputElement.textContent += `\nChanged pairs (input, output) as integers (each incremented by 1):\n`;
+        Array.from(changedPairs)
+          .map(pair => JSON.parse(pair))
+          .sort((a,b) => a[0] - b[0]) // Sort pairs by the first element
+          .forEach(pair => {
+            outputElement.textContent += `(${pair[0]}, ${pair[1]})\n`;
+          });
+      }
+    }
+
+    // Function to handle user input and start the evaluation
+    function evaluateFunction() {
+      const level = parseInt(document.getElementById('level').value);
+      const expressionInput = document.getElementById('expression').value;
+      const [target,booleanExpression] = expressionInput.split(' = ');
+
+      if(isNaN(level) || !target || !booleanExpression) {
+        alert('Please enter valid inputs.');
+        return;
+      }
+
+      tryAllCombinations(level,target,booleanExpression);
+    }
+  </script>
+
+</body>
+
+</html>
